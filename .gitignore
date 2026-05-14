@@ -1,0 +1,20 @@
+# sc/ (Foundry)
+sc/cache/
+sc/out/
+sc/broadcast/
+sc/.env
+# Dependencias vendoreadas por Foundry: se reinstalan con `forge install`
+sc/lib/
+
+# web/ (Next.js)
+web/node_modules/
+web/.next/
+web/out/
+web/.env
+web/.env.local
+web/*.tsbuildinfo
+web/next-env.d.ts
+
+
+Guia-desarrollo.md
+recursos.txt
