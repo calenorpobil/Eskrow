@@ -97,6 +97,7 @@ export function OperationsList() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opErrors, setOpErrors] = useState<Record<number, string>>({});
+  const [symbols, setSymbols] = useState<Record<string, string>>({});
 
   const setOpError = (id: number, msg: string | null) =>
     setOpErrors((prev) => {
@@ -122,18 +123,43 @@ export function OperationsList() {
         amountB: bigint;
         status: bigint;
       }>;
-      setOps(
-        raw.map((o) => ({
-          id: Number(o.id),
-          creator: o.creator,
-          counterparty: o.counterparty,
-          tokenA: o.tokenA,
-          tokenB: o.tokenB,
-          amountA: o.amountA,
-          amountB: o.amountB,
-          status: Number(o.status)
-        }))
+      const mapped = raw.map((o) => ({
+        id: Number(o.id),
+        creator: o.creator,
+        counterparty: o.counterparty,
+        tokenA: o.tokenA,
+        tokenB: o.tokenB,
+        amountA: o.amountA,
+        amountB: o.amountB,
+        status: Number(o.status)
+      }));
+      setOps(mapped);
+
+      const unique = Array.from(
+        new Set(mapped.flatMap((o) => [o.tokenA.toLowerCase(), o.tokenB.toLowerCase()]))
       );
+      setSymbols((prev) => {
+        const missing = unique.filter((addr) => !(addr in prev));
+        if (missing.length === 0) return prev;
+        void Promise.all(
+          missing.map(async (addr) => {
+            try {
+              const erc20 = new Contract(addr, ERC20_ABI, provider);
+              const sym = (await erc20.symbol()) as string;
+              return [addr, sym] as const;
+            } catch {
+              return [addr, ""] as const;
+            }
+          })
+        ).then((entries) => {
+          setSymbols((curr) => {
+            const next = { ...curr };
+            for (const [addr, sym] of entries) next[addr] = sym;
+            return next;
+          });
+        });
+        return prev;
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al cargar operaciones");
     } finally {
@@ -143,6 +169,10 @@ export function OperationsList() {
 
   useEffect(() => {
     void refresh();
+    const interval = setInterval(() => {
+      void refresh();
+    }, 5000);
+    return () => clearInterval(interval);
   }, [refresh]);
 
   async function complete(op: Operation) {
@@ -205,6 +235,10 @@ export function OperationsList() {
           const isCreator = account?.toLowerCase() === o.creator.toLowerCase();
           const active = o.status === 0;
           const settled = o.counterparty !== ZERO;
+          const symA = symbols[o.tokenA.toLowerCase()];
+          const symB = symbols[o.tokenB.toLowerCase()];
+          const labelA = symA ? `${symA} (${o.tokenA.slice(0, 6)}…)` : `${o.tokenA.slice(0, 10)}…`;
+          const labelB = symB ? `${symB} (${o.tokenB.slice(0, 6)}…)` : `${o.tokenB.slice(0, 10)}…`;
           return (
             <li
               key={o.id}
@@ -233,14 +267,14 @@ export function OperationsList() {
                   <div className="text-xs uppercase tracking-wide text-white/40">Ofrece</div>
                   <div className="font-mono">
                     {o.amountA.toString()}{" "}
-                    <span className="text-white/50">de {o.tokenA.slice(0, 10)}…</span>
+                    <span className="text-white/50">de {labelA}</span>
                   </div>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-white/40">Pide</div>
                   <div className="font-mono">
                     {o.amountB.toString()}{" "}
-                    <span className="text-white/50">de {o.tokenB.slice(0, 10)}…</span>
+                    <span className="text-white/50">de {labelB}</span>
                   </div>
                 </div>
                 <div>
