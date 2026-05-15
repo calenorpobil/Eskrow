@@ -1,8 +1,8 @@
 "use client";
 
-import { Contract, formatUnits } from "ethers";
+import { Contract, formatUnits, isAddress } from "ethers";
 import { useState } from "react";
-import { ERC20_ABI } from "@/lib/contracts";
+import { CHAIN_ID, ERC20_ABI } from "@/lib/contracts";
 import { useEthereum } from "@/lib/ethereum";
 
 const inputCls =
@@ -11,7 +11,7 @@ const btnPrimary =
   "rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60";
 
 export function BalanceDebug() {
-  const { provider, account } = useEthereum();
+  const { provider, account, chainId } = useEthereum();
   const [token, setToken] = useState("");
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -22,9 +22,25 @@ export function BalanceDebug() {
       setResult("Conecta tu wallet primero");
       return;
     }
+    const tokenAddress = token.trim();
+    if (!isAddress(tokenAddress)) {
+      setResult("Dirección de token inválida");
+      return;
+    }
+    if (chainId !== CHAIN_ID) {
+      setResult(`Estás en chain ${chainId}, cambia a chain ${CHAIN_ID} en MetaMask`);
+      return;
+    }
     try {
       setLoading(true);
-      const erc20 = new Contract(token, ERC20_ABI, provider);
+      const code = await provider.getCode(tokenAddress);
+      if (!code || code === "0x") {
+        setResult(
+          `No hay contrato en ${tokenAddress} en chain ${chainId}. Verifica la dirección y la red.`
+        );
+        return;
+      }
+      const erc20 = new Contract(tokenAddress, ERC20_ABI, provider);
       const [symbol, decimals, balance] = await Promise.all([
         erc20.symbol() as Promise<string>,
         erc20.decimals() as Promise<bigint>,
@@ -32,7 +48,13 @@ export function BalanceDebug() {
       ]);
       setResult(`${formatUnits(balance, Number(decimals))} ${symbol}`);
     } catch (e) {
-      setResult(e instanceof Error ? e.message : "Error al leer balance");
+      console.error("[BalanceDebug] check failed", e);
+      const msg = e instanceof Error ? e.message : "Error al leer balance";
+      if (msg.includes("could not decode result data")) {
+        setResult("La dirección no parece un token ERC20 estándar (symbol/decimals devolvieron vacío).");
+      } else {
+        setResult(msg);
+      }
     } finally {
       setLoading(false);
     }

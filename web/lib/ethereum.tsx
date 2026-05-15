@@ -51,13 +51,15 @@ export function EthereumProvider({ children }: { children: ReactNode }) {
         if (method === "eth_requestAccounts") setError("Wallet no detectada (instala MetaMask)");
         return;
       }
+      const interactive = method === "eth_requestAccounts";
       try {
-        setConnecting(true);
+        if (interactive) setConnecting(true);
         const browserProvider = new BrowserProvider(injected as never);
-        const accounts = forcedAccount
+        const raw = forcedAccount
           ? [forcedAccount]
           : ((await injected.request({ method })) as string[]);
-        if (!accounts || accounts.length === 0) {
+        const accounts = (raw ?? []).filter((a): a is string => typeof a === "string" && a.length > 0);
+        if (accounts.length === 0) {
           resetState();
           return;
         }
@@ -69,11 +71,12 @@ export function EthereumProvider({ children }: { children: ReactNode }) {
         setAccount(target);
         setChainId(Number(network.chainId));
       } catch (e) {
-        if (method === "eth_requestAccounts") {
+        console.error("[ethereum] hydrate failed", { method, forcedAccount, error: e });
+        if (interactive) {
           setError(e instanceof Error ? e.message : "Error al conectar");
         }
       } finally {
-        setConnecting(false);
+        if (interactive) setConnecting(false);
       }
     },
     [resetState]
@@ -96,23 +99,35 @@ export function EthereumProvider({ children }: { children: ReactNode }) {
     const injected = getInjected();
     if (!injected?.on) return;
     const onAccounts = (...args: unknown[]) => {
-      const accounts = args[0] as string[];
-      if (!accounts || accounts.length === 0) {
+      const first = args[0];
+      const accounts = Array.isArray(first)
+        ? (first as string[])
+        : typeof first === "string" && first.length > 0
+          ? [first]
+          : [];
+      if (accounts.length === 0) {
         resetState();
         return;
       }
       void hydrate("eth_accounts", accounts[0]);
     };
     const onChain = (...args: unknown[]) => {
-      const cid = args[0] as string;
-      setChainId(Number.parseInt(cid, 16));
+      const cid = args[0];
+      if (typeof cid === "string") {
+        setChainId(Number.parseInt(cid, 16));
+      }
       void hydrate("eth_accounts");
+    };
+    const onDisconnect = () => {
+      resetState();
     };
     injected.on("accountsChanged", onAccounts);
     injected.on("chainChanged", onChain);
+    injected.on("disconnect", onDisconnect);
     return () => {
       injected.removeListener?.("accountsChanged", onAccounts);
       injected.removeListener?.("chainChanged", onChain);
+      injected.removeListener?.("disconnect", onDisconnect);
     };
   }, [hydrate, resetState]);
 

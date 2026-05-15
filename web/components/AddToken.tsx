@@ -4,6 +4,8 @@ import { Contract, isAddress } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { ERC20_ABI, ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
 import { useEthereum } from "@/lib/ethereum";
+import { getActiveAccounts } from "@/lib/accounts";
+import { airdrop, DEFAULT_AIRDROP_AMOUNT } from "@/lib/airdrop";
 
 type TokenInfo = {
   address: string;
@@ -71,13 +73,56 @@ export function AddToken() {
       setError("Solo el owner del contrato puede agregar tokens");
       return;
     }
+    const normalized = address.toLowerCase();
+    if (tokens.some((t) => t.address.toLowerCase() === normalized)) {
+      setError("Ese token ya está en la lista de permitidos");
+      return;
+    }
     try {
       setLoading(true);
+      if (!provider) {
+        setError("Proveedor no disponible");
+        return;
+      }
+      const code = await provider.getCode(address);
+      if (!code || code === "0x") {
+        setError("La dirección no es un contrato");
+        return;
+      }
+      const token = new Contract(address, ERC20_ABI, provider);
+      try {
+        const [sym, dec] = await Promise.all([
+          token.symbol() as Promise<string>,
+          token.decimals() as Promise<number>
+        ]);
+        if (!sym || typeof dec !== "number" && typeof dec !== "bigint") {
+          setError("La dirección no responde como un token ERC20");
+          return;
+        }
+      } catch {
+        setError("La dirección no implementa la interfaz ERC20 (symbol/decimals)");
+        return;
+      }
       const escrow = new Contract(ESCROW_ADDRESS, ESCROW_ABI, signer);
       const tx = await escrow.addToken(address);
       setInfo(`Tx enviada: ${tx.hash}`);
       await tx.wait();
-      setInfo("Token agregado correctamente");
+      setInfo("Token agregado. Minteando a cuentas activas…");
+
+      const accounts = getActiveAccounts().map((a) => a.address);
+      const results = await airdrop(signer, [address], accounts);
+      const ok = results.filter((r) => r.ok).length;
+      if (ok === results.length) {
+        setInfo(
+          `Token agregado y minteados ${DEFAULT_AIRDROP_AMOUNT} a ${ok} cuentas activas.`
+        );
+      } else if (ok === 0) {
+        setInfo(
+          "Token agregado, pero no se pudo mintear (¿el token no expone mint público?)."
+        );
+      } else {
+        setInfo(`Token agregado. Mint completados: ${ok}/${results.length}.`);
+      }
       setAddress("");
       await loadTokens();
     } catch (e) {

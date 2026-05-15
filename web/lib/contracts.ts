@@ -1,6 +1,6 @@
 import type { InterfaceAbi } from "ethers";
 
-export const ESCROW_ADDRESS = (process.env.NEXT_PUBLIC_ESCROW_ADDRESS ?? "0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1") as `0x${string}`;
+export const ESCROW_ADDRESS = (process.env.NEXT_PUBLIC_ESCROW_ADDRESS ?? "0x5FbDB2315678afecb367f032d93F642f64180aa3") as `0x${string}`;
 export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 11155111);
 export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? "";
 
@@ -30,5 +30,5 @@ export const ERC20_ABI: InterfaceAbi = [
   "function approve(address spender,uint256 value) returns (bool)",
   "function transfer(address to,uint256 value) returns (bool)"
 ];
-export const TOKEN_A_ADDRESS = (process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS ?? "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE") as `0x${string}`;
-export const TOKEN_B_ADDRESS = (process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS ?? "0x68B1D87F95878fE05B998F19b66F4baba5De1aed") as `0x${string}`;
+export const TOKEN_A_ADDRESS = (process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS ?? "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512") as `0x${string}`;
+export const TOKEN_B_ADDRESS = (process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS ?? "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0") as `0x${string}`;
