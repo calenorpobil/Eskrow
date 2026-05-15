@@ -1,17 +1,15 @@
 "use client";
 
-import { Contract, formatEther, formatUnits, isAddress } from "ethers";
+import { Contract, formatEther, formatUnits } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { CHAIN_ID, ERC20_ABI, ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
 import { useEthereum } from "@/lib/ethereum";
 import {
-  addActiveAccount,
   getActiveAccounts,
   removeActiveAccount,
   subscribeAccounts,
   type ActiveAccount
 } from "@/lib/accounts";
-import { airdrop, DEFAULT_AIRDROP_AMOUNT } from "@/lib/airdrop";
 
 type TokenMeta = { address: string; symbol: string; decimals: number };
 type Row = {
@@ -27,16 +25,13 @@ function short(addr: string) {
 }
 
 export function AnvilBalances() {
-  const { provider, signer, chainId } = useEthereum();
+  const { provider, chainId } = useEthereum();
   const [accounts, setAccounts] = useState<ActiveAccount[]>(() => getActiveAccounts());
   const [tokenMetas, setTokenMetas] = useState<TokenMeta[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [newAddress, setNewAddress] = useState("");
-  const [newLabel, setNewLabel] = useState("");
-  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeAccounts(() => setAccounts(getActiveAccounts()));
@@ -109,49 +104,6 @@ export function AnvilBalances() {
     void refresh();
   }, [refresh]);
 
-  async function handleAddAccount() {
-    setError(null);
-    setInfo(null);
-    if (!isAddress(newAddress)) {
-      setError("Dirección inválida");
-      return;
-    }
-    const entry = addActiveAccount(newAddress, newLabel || undefined);
-    if (!entry) {
-      setError("Esa cuenta ya está registrada");
-      return;
-    }
-    setNewAddress("");
-    setNewLabel("");
-
-    if (!signer) {
-      setInfo("Cuenta añadida. Conecta tu wallet para mintearle tokens.");
-      return;
-    }
-    const tokens = tokenMetas.map((m) => m.address);
-    if (tokens.length === 0) {
-      setInfo("Cuenta añadida. No hay tokens activos para mintear.");
-      return;
-    }
-    try {
-      setAdding(true);
-      const results = await airdrop(signer, tokens, [entry.address]);
-      const failed = results.filter((r) => !r.ok);
-      if (failed.length === 0) {
-        setInfo(`Cuenta añadida y minteados ${DEFAULT_AIRDROP_AMOUNT} de cada token (${tokens.length}).`);
-      } else {
-        setInfo(
-          `Cuenta añadida. Mint completados: ${results.length - failed.length}/${results.length}. Algunos tokens no exponen mint público.`
-        );
-      }
-      await refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al mintear");
-    } finally {
-      setAdding(false);
-    }
-  }
-
   function handleRemove(address: string) {
     if (removeActiveAccount(address)) {
       setInfo(`Cuenta ${short(address)} eliminada de la lista.`);
@@ -179,34 +131,6 @@ export function AnvilBalances() {
           Chain actual {chainId}. Cambia a {CHAIN_ID} para Anvil local.
         </p>
       ) : null}
-
-      <div className="mb-3 space-y-2 rounded-lg border border-white/10 bg-slate-900/40 p-3">
-        <div className="flex flex-wrap gap-2">
-          <input
-            value={newAddress}
-            onChange={(e) => setNewAddress(e.target.value)}
-            placeholder="0x… dirección a añadir"
-            className="flex-1 min-w-[220px] rounded-md border border-white/10 bg-slate-950/60 px-2 py-1 text-xs text-white placeholder-white/40 outline-none focus:border-indigo-400"
-          />
-          <input
-            value={newLabel}
-            onChange={(e) => setNewLabel(e.target.value)}
-            placeholder="etiqueta (opcional)"
-            className="w-32 rounded-md border border-white/10 bg-slate-950/60 px-2 py-1 text-xs text-white placeholder-white/40 outline-none focus:border-indigo-400"
-          />
-          <button
-            type="button"
-            onClick={handleAddAccount}
-            disabled={adding || !newAddress}
-            className="rounded-md bg-indigo-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-50"
-          >
-            {adding ? "Minteando…" : "Añadir + airdrop 1000"}
-          </button>
-        </div>
-        <p className="text-[10px] text-white/40">
-          La cuenta nueva recibe {DEFAULT_AIRDROP_AMOUNT} de cada token activo (requiere mint público).
-        </p>
-      </div>
 
       {error ? <p className="mb-2 text-xs text-rose-400">{error}</p> : null}
       {info ? <p className="mb-2 text-xs text-emerald-300">{info}</p> : null}

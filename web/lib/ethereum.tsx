@@ -1,8 +1,11 @@
 "use client";
 
-import { BrowserProvider, JsonRpcSigner } from "ethers";
+import { BrowserProvider, Contract, JsonRpcSigner } from "ethers";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
+import { addActiveAccount, getActiveAccounts } from "@/lib/accounts";
+import { airdrop } from "@/lib/airdrop";
 
 type Eip1193Provider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
@@ -86,6 +89,26 @@ export function EthereumProvider({ children }: { children: ReactNode }) {
     setError(null);
     await hydrate("eth_requestAccounts");
   }, [hydrate]);
+
+  useEffect(() => {
+    if (!account || !signer || !provider) return;
+    const existing = getActiveAccounts().some(
+      (a) => a.address.toLowerCase() === account.toLowerCase()
+    );
+    if (existing) return;
+    const entry = addActiveAccount(account);
+    if (!entry) return;
+    (async () => {
+      try {
+        const escrow = new Contract(ESCROW_ADDRESS, ESCROW_ABI, provider);
+        const tokens = (await escrow.getAllowedTokens()) as string[];
+        if (tokens.length === 0) return;
+        await airdrop(signer, tokens, [entry.address]);
+      } catch (e) {
+        console.warn("[ethereum] airdrop on connect failed", e);
+      }
+    })();
+  }, [account, signer, provider]);
 
   const disconnect = useCallback(() => {
     resetState();
