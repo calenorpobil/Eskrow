@@ -14,6 +14,11 @@ contract MockERC20 is ERC20 {
     }
 }
 
+contract NotAToken {
+    // Contrato sin symbol() ni decimals()
+    uint256 public something;
+}
+
 contract EscrowTest is Test {
     Escrow internal escrow;
     MockERC20 internal tokenA;
@@ -83,6 +88,18 @@ contract EscrowTest is Test {
     function test_AddToken_RevertIfZero() public {
         vm.expectRevert(Escrow.InvalidParams.selector);
         escrow.addToken(address(0));
+    }
+
+    function test_AddToken_RevertIfEOA() public {
+        address eoa = makeAddr("eoa");
+        vm.expectRevert(Escrow.InvalidParams.selector);
+        escrow.addToken(eoa);
+    }
+
+    function test_AddToken_RevertIfNotERC20() public {
+        NotAToken bad = new NotAToken();
+        vm.expectRevert(Escrow.InvalidParams.selector);
+        escrow.addToken(address(bad));
     }
 
     function test_AddToken_RevertIfDuplicate() public {

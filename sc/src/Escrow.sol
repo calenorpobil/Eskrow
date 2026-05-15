@@ -57,6 +57,12 @@ contract Escrow is Ownable, ReentrancyGuard {
     function addToken(address token) external onlyOwner {
         if (token == address(0)) revert InvalidParams();
         if (isTokenAllowed[token]) revert TokenAlreadyAllowed();
+        if (token.code.length == 0) revert InvalidParams();
+
+        (bool okSym,) = token.staticcall(abi.encodeWithSignature("symbol()"));
+        (bool okDec,) = token.staticcall(abi.encodeWithSignature("decimals()"));
+        if (!okSym || !okDec) revert InvalidParams();
+
         isTokenAllowed[token] = true;
         allowedTokens.push(token);
         emit TokenAdded(token);
