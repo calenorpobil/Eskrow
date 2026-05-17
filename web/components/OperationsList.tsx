@@ -1,9 +1,10 @@
 "use client";
 
-import { Contract, MaxUint256 } from "ethers";
+import { Contract, MaxUint256, formatUnits } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { ERC20_ABI, ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
 import { useEthereum } from "@/lib/ethereum";
+import { parseReadError, parseTxError } from "@/lib/errors";
 
 type Operation = {
   id: number;
@@ -30,74 +31,13 @@ const btnDanger =
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
-function parseTxError(e: unknown, fallback: string): string {
-  if (typeof e !== "object" || e === null) return fallback;
-  const err = e as {
-    code?: string | number;
-    shortMessage?: string;
-    reason?: string;
-    message?: string;
-    data?: { message?: string };
-    info?: { error?: { message?: string } };
-  };
-  const raw = (
-    err.info?.error?.message ??
-    err.data?.message ??
-    err.reason ??
-    err.shortMessage ??
-    err.message ??
-    ""
-  ).toLowerCase();
-
-  if (err.code === "ACTION_REJECTED" || raw.includes("user rejected") || raw.includes("user denied")) {
-    return "Transacción rechazada en la wallet.";
-  }
-  if (raw.includes("insufficient funds")) {
-    return "No tienes suficiente ETH para pagar el gas.";
-  }
-  if (
-    raw.includes("erc20: transfer amount exceeds balance") ||
-    raw.includes("transfer amount exceeds balance") ||
-    raw.includes("insufficient balance")
-  ) {
-    return "Saldo insuficiente del token requerido para completar la operación.";
-  }
-  if (
-    raw.includes("erc20: insufficient allowance") ||
-    raw.includes("insufficient allowance")
-  ) {
-    return "Approve insuficiente: la wallet no autorizó al contrato a mover los tokens.";
-  }
-  if (raw.includes("operation not active") || raw.includes("not active")) {
-    return "La operación ya no está activa (puede haber sido completada o cancelada).";
-  }
-  if (raw.includes("only creator") || raw.includes("not creator")) {
-    return "Solo el creador puede cancelar esta operación.";
-  }
-  if (raw.includes("cannot complete own") || raw.includes("own operation")) {
-    return "No puedes completar tu propia operación.";
-  }
-  if (raw.includes("token not allowed")) {
-    return "El token utilizado no está permitido en el contrato.";
-  }
-  if (raw.includes("nonce")) {
-    return "Conflicto de nonce: reinicia la wallet o vuelve a intentarlo.";
-  }
-  if (raw.includes("network") || raw.includes("disconnect") || raw.includes("timeout")) {
-    return "Problema de red al enviar la transacción. Intenta de nuevo.";
-  }
-  if (err.shortMessage) return err.shortMessage;
-  if (err.message) return err.message;
-  return fallback;
-}
-
 export function OperationsList() {
   const { provider, signer, account } = useEthereum();
   const [ops, setOps] = useState<Operation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opErrors, setOpErrors] = useState<Record<number, string>>({});
-  const [symbols, setSymbols] = useState<Record<string, string>>({});
+  const [tokenMeta, setTokenMeta] = useState<Record<string, { symbol: string; decimals: number }>>({});
 
   const setOpError = (id: number, msg: string | null) =>
     setOpErrors((prev) => {
@@ -113,7 +53,7 @@ export function OperationsList() {
     try {
       setLoading(true);
       const escrow = new Contract(ESCROW_ADDRESS, ESCROW_ABI, provider);
-      const raw = (await escrow.getAllOperations()) as Array<{
+      let raw: Array<{
         id: bigint;
         creator: string;
         counterparty: string;
@@ -122,7 +62,14 @@ export function OperationsList() {
         amountA: bigint;
         amountB: bigint;
         status: bigint;
-      }>;
+      }> = [];
+      try {
+        raw = (await escrow.getAllOperations()) as typeof raw;
+      } catch (readErr) {
+        setOps([]);
+        setError(parseReadError(readErr, "No se pudieron cargar las operaciones"));
+        return;
+      }
       const mapped = raw.map((o) => ({
         id: Number(o.id),
         creator: o.creator,
@@ -138,30 +85,33 @@ export function OperationsList() {
       const unique = Array.from(
         new Set(mapped.flatMap((o) => [o.tokenA.toLowerCase(), o.tokenB.toLowerCase()]))
       );
-      setSymbols((prev) => {
+      setTokenMeta((prev) => {
         const missing = unique.filter((addr) => !(addr in prev));
         if (missing.length === 0) return prev;
         void Promise.all(
           missing.map(async (addr) => {
             try {
               const erc20 = new Contract(addr, ERC20_ABI, provider);
-              const sym = (await erc20.symbol()) as string;
-              return [addr, sym] as const;
+              const [sym, dec] = await Promise.all([
+                erc20.symbol() as Promise<string>,
+                erc20.decimals() as Promise<bigint>
+              ]);
+              return [addr, { symbol: sym, decimals: Number(dec) }] as const;
             } catch {
-              return [addr, ""] as const;
+              return [addr, { symbol: "", decimals: 18 }] as const;
             }
           })
         ).then((entries) => {
-          setSymbols((curr) => {
+          setTokenMeta((curr) => {
             const next = { ...curr };
-            for (const [addr, sym] of entries) next[addr] = sym;
+            for (const [addr, meta] of entries) next[addr] = meta;
             return next;
           });
         });
         return prev;
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al cargar operaciones");
+      setError(parseReadError(e, "Error al cargar operaciones"));
     } finally {
       setLoading(false);
     }
@@ -235,10 +185,14 @@ export function OperationsList() {
           const isCreator = account?.toLowerCase() === o.creator.toLowerCase();
           const active = o.status === 0;
           const settled = o.counterparty !== ZERO;
-          const symA = symbols[o.tokenA.toLowerCase()];
-          const symB = symbols[o.tokenB.toLowerCase()];
+          const metaA = tokenMeta[o.tokenA.toLowerCase()];
+          const metaB = tokenMeta[o.tokenB.toLowerCase()];
+          const symA = metaA?.symbol;
+          const symB = metaB?.symbol;
           const labelA = symA ? `${symA} (${o.tokenA.slice(0, 6)}…)` : `${o.tokenA.slice(0, 10)}…`;
           const labelB = symB ? `${symB} (${o.tokenB.slice(0, 6)}…)` : `${o.tokenB.slice(0, 10)}…`;
+          const amountADisplay = metaA ? formatUnits(o.amountA, metaA.decimals) : o.amountA.toString();
+          const amountBDisplay = metaB ? formatUnits(o.amountB, metaB.decimals) : o.amountB.toString();
           return (
             <li
               key={o.id}
@@ -266,25 +220,31 @@ export function OperationsList() {
                 <div>
                   <div className="text-xs uppercase tracking-wide text-white/40">Ofrece</div>
                   <div className="font-mono">
-                    {o.amountA.toString()}{" "}
+                    {amountADisplay}{" "}
                     <span className="text-white/50">de {labelA}</span>
                   </div>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-white/40">Pide</div>
                   <div className="font-mono">
-                    {o.amountB.toString()}{" "}
+                    {amountBDisplay}{" "}
                     <span className="text-white/50">de {labelB}</span>
                   </div>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-white/40">Creador</div>
-                  <div className="font-mono text-white/70">{o.creator}</div>
+                  <div className="font-mono text-white/70" title={o.creator}>
+                    {`${o.creator.slice(0, 6)}…${o.creator.slice(-4)}`}
+                  </div>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-white/40">Contraparte</div>
-                  <div className="font-mono text-white/70">
-                    {settled ? o.counterparty : <span className="text-white/40">(abierta)</span>}
+                  <div className="font-mono text-white/70" title={settled ? o.counterparty : undefined}>
+                    {settled ? (
+                      `${o.counterparty.slice(0, 6)}…${o.counterparty.slice(-4)}`
+                    ) : (
+                      <span className="text-white/40">(abierta)</span>
+                    )}
                   </div>
                 </div>
               </div>

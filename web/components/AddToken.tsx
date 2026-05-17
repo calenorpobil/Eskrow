@@ -6,10 +6,12 @@ import { ERC20_ABI, ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
 import { useEthereum } from "@/lib/ethereum";
 import { getActiveAccounts } from "@/lib/accounts";
 import { airdrop, DEFAULT_AIRDROP_AMOUNT } from "@/lib/airdrop";
+import { parseReadError, parseTxError } from "@/lib/errors";
 
 type TokenInfo = {
   address: string;
   symbol: string;
+  name: string;
 };
 
 const inputCls =
@@ -32,25 +34,37 @@ export function AddToken() {
     if (!provider) return;
     try {
       const escrow = new Contract(ESCROW_ADDRESS, ESCROW_ABI, provider);
-      const [ownerAddr, list] = await Promise.all([
-        escrow.owner() as Promise<string>,
-        escrow.getAllowedTokens() as Promise<string[]>
-      ]);
-      setOwner(ownerAddr);
+      let ownerAddr = "";
+      let list: string[] = [];
+      try {
+        ownerAddr = (await escrow.owner()) as string;
+      } catch (e) {
+        setError(parseReadError(e, "No se pudo leer el owner del contrato"));
+      }
+      try {
+        list = (await escrow.getAllowedTokens()) as string[];
+      } catch {
+        list = [];
+      }
+      setOwner(ownerAddr || null);
       const infos = await Promise.all(
         list.map(async (addr) => {
           try {
             const token = new Contract(addr, ERC20_ABI, provider);
-            const symbol = (await token.symbol()) as string;
-            return { address: addr, symbol };
+            const [symbol, name] = await Promise.all([
+              token.symbol() as Promise<string>,
+              token.name() as Promise<string>
+            ]);
+            return { address: addr, symbol, name };
           } catch {
-            return { address: addr, symbol: "?" };
+            return { address: addr, symbol: "?", name: "" };
           }
         })
       );
       setTokens(infos);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo cargar la lista de tokens");
+      setTokens([]);
+      setError(parseReadError(e, "No se pudo cargar la lista de tokens"));
     }
   }, [provider]);
 
@@ -126,7 +140,7 @@ export function AddToken() {
       setAddress("");
       await loadTokens();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo agregar el token");
+      setError(parseTxError(e, "No se pudo agregar el token"));
     } finally {
       setLoading(false);
     }
@@ -186,9 +200,14 @@ export function AddToken() {
                 key={t.address}
                 className="flex flex-wrap items-center gap-2 px-4 py-3 text-sm"
               >
-                <span className="rounded bg-indigo-500/20 px-2 py-0.5 font-mono text-indigo-200">
-                  {t.symbol}
-                </span>
+                <div className="flex flex-col items-start">
+                  <span className="rounded bg-indigo-500/20 px-2 py-0.5 font-mono text-indigo-200">
+                    {t.symbol}
+                  </span>
+                  {t.name ? (
+                    <span className="mt-1 text-xs text-white/60">{t.name}</span>
+                  ) : null}
+                </div>
                 <span className="ml-auto font-mono text-xs text-white/60">{t.address}</span>
               </li>
             ))}

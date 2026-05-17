@@ -10,6 +10,7 @@ import {
   subscribeAccounts,
   type ActiveAccount
 } from "@/lib/accounts";
+import { parseReadError } from "@/lib/errors";
 
 type TokenMeta = { address: string; symbol: string; decimals: number };
 type Row = {
@@ -44,7 +45,14 @@ export function AnvilBalances() {
     setLoading(true);
     try {
       const escrow = new Contract(ESCROW_ADDRESS, ESCROW_ABI, provider);
-      const tokenList = (await escrow.getAllowedTokens()) as string[];
+      let tokenList: string[] = [];
+      try {
+        tokenList = (await escrow.getAllowedTokens()) as string[];
+      } catch (readErr) {
+        console.warn("[AnvilBalances] getAllowedTokens failed", readErr);
+        setError(parseReadError(readErr, "No se pudo leer la lista de tokens permitidos"));
+        tokenList = [];
+      }
 
       const metas: TokenMeta[] = [];
       for (const addr of tokenList) {
@@ -94,7 +102,7 @@ export function AnvilBalances() {
       setRows(next);
     } catch (e) {
       console.error("[AnvilBalances] refresh failed", e);
-      setError(e instanceof Error ? e.message : "Error al leer balances");
+      setError(parseReadError(e, "Error al leer balances"));
     } finally {
       setLoading(false);
     }

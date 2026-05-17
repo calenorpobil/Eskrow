@@ -15,6 +15,16 @@ web/.env.local
 web/*.tsbuildinfo
 web/next-env.d.ts
 
+# Playwright + Synpress
+web/test-results/
+web/playwright-report/
+web/.cache-synpress/
+web/playwright/.cache/
+
 
 Guia-desarrollo.md
 recursos.txt
+README.md
+
+
+ignore

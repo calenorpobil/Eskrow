@@ -4,6 +4,7 @@ import { Contract, parseUnits } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { ERC20_ABI, ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
 import { useEthereum } from "@/lib/ethereum";
+import { parseReadError, parseTxError } from "@/lib/errors";
 
 const inputCls =
   "w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white placeholder-white/40 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30";
@@ -35,7 +36,16 @@ export function CreateOperation() {
       try {
         setLoadingTokens(true);
         const escrow = new Contract(ESCROW_ADDRESS, ESCROW_ABI, runner);
-        const addresses: string[] = await escrow.getAllowedTokens();
+        let addresses: string[] = [];
+        try {
+          addresses = (await escrow.getAllowedTokens()) as string[];
+        } catch (readErr) {
+          if (!signal?.cancelled) {
+            setTokens([]);
+            setError(parseReadError(readErr, "No se pudieron cargar los tokens permitidos"));
+          }
+          return;
+        }
         const infos = await Promise.all(
           addresses.map(async (address) => {
             try {
@@ -50,7 +60,8 @@ export function CreateOperation() {
         if (!signal?.cancelled) setTokens(infos);
       } catch (e) {
         if (!signal?.cancelled) {
-          setError(e instanceof Error ? e.message : "No se pudieron cargar los tokens permitidos");
+          setTokens([]);
+          setError(parseReadError(e, "No se pudieron cargar los tokens permitidos"));
         }
       } finally {
         if (!signal?.cancelled) setLoadingTokens(false);
@@ -126,7 +137,7 @@ export function CreateOperation() {
         if (typeof window !== "undefined") window.location.reload();
       }, 1200);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al crear la operación");
+      setError(parseTxError(e, "Error al crear la operación"));
       setStatus(null);
     } finally {
       setBusy(false);
