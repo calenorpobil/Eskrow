@@ -1,7 +1,7 @@
 import { testWithSynpress } from "@synthetixio/synpress";
 import { MetaMask, metaMaskFixtures } from "@synthetixio/synpress/playwright";
 import { expect } from "@playwright/test";
-import setup, { PASSWORD } from "./wallet-setup/anvil.setup";
+import setup, { PASSWORD } from "./wallet-setup/anvil.setup.mjs";
 import { ESCROW_ADDRESS, TOKEN_A_ADDRESS, TOKEN_B_ADDRESS } from "../lib/contracts";
 import {
   STATUS,
@@ -13,6 +13,9 @@ const ACC1 = "0xf39Fd6e51AAd88F6F4cE6Ab8827279cFFFb92266"; // Anvil #0 — creat
 const ACC2 = "0x70997970C51812dc3A010C7d01b50e0d17DC79c8"; // Anvil #1 — counterparty
 
 const test = testWithSynpress(metaMaskFixtures(setup));
+
+// tests/escrow-flow.spec.ts (justo después de los imports)
+console.log("[synpress] runtime hash =", setup.hash);
 
 test.describe("Escrow E2E — Anvil + MetaMask", () => {
   test("flujo completo: tokens permitidos → crear → completar → cancelar", async ({
