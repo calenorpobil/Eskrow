@@ -64,7 +64,7 @@ export function AnvilBalances() {
       setTokenMetas(metas);
 
       const baseAddrs = new Set(
-        getActiveAccounts().slice(0, 5).map((a) => a.address.toLowerCase())
+        getActiveAccounts().slice(0, 6).map((a) => a.address.toLowerCase())
       );
 
       const next: Row[] = await Promise.all(
@@ -120,7 +120,7 @@ export function AnvilBalances() {
           disabled={loading || !provider}
           className="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/90 transition hover:bg-white/10 disabled:opacity-50"
         >
-          {loading ? "…" : "↻"}
+          {loading ? "Actualizando…" : "Refresh"}
         </button>
       </div>
 
@@ -134,15 +134,28 @@ export function AnvilBalances() {
 
       {error ? <p className="mb-2 text-xs text-rose-400">{error}</p> : null}
       {info ? <p className="mb-2 text-xs text-emerald-300">{info}</p> : null}
+      {!loading && provider && tokenMetas.length === 0 ? (
+        <p className="mb-2 text-xs text-white/50">
+          Aún no hay tokens permitidos en el Escrow. Solo se muestra ETH.
+        </p>
+      ) : null}
 
       <ul className="space-y-3">
-        {rows.map((r) => (
+        {rows.map((r) => {
+          const isEscrow = r.address.toLowerCase() === ESCROW_ADDRESS.toLowerCase();
+          return (
           <li
             key={r.address}
-            className="rounded-lg border border-white/10 bg-slate-900/40 p-3 text-xs"
+            className={
+              isEscrow
+                ? "rounded-lg border border-blue-400/50 bg-blue-500/10 p-3 text-xs ring-1 ring-blue-400/30"
+                : "rounded-lg border border-white/10 bg-slate-900/40 p-3 text-xs"
+            }
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="font-semibold text-white/80">{r.label}</span>
+              <span className={isEscrow ? "font-semibold text-blue-300" : "font-semibold text-white/80"}>
+                {r.label}
+              </span>
               <span className="font-mono text-white/50">{short(r.address)}</span>
               {r.removable ? (
                 <button
@@ -172,7 +185,8 @@ export function AnvilBalances() {
               ))}
             </dl>
           </li>
-        ))}
+          );
+        })}
         {rows.length === 0 && !loading && provider ? (
           <li className="text-xs text-white/40">Sin datos.</li>
         ) : null}

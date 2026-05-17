@@ -156,27 +156,23 @@ export function AddToken() {
         ) : null}
       </div>
 
-      <div className="flex gap-2">
-        <input
-          value={address}
-          placeholder="0x… dirección del token ERC20"
-          onChange={(e) => setAddress(e.target.value)}
-          className={inputCls}
-          disabled={!isOwner}
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={loading || !address || !isOwner}
-          className={btnPrimary}
-        >
-          {loading ? "Enviando…" : "Agregar"}
-        </button>
-      </div>
-      {!isOwner && account ? (
-        <p className="text-xs text-amber-300/80">
-          Conectado como {account.slice(0, 6)}…{account.slice(-4)}. Solo el owner puede agregar tokens.
-        </p>
+      {isOwner ? (
+        <div className="flex gap-2">
+          <input
+            value={address}
+            placeholder="0x… dirección del token ERC20"
+            onChange={(e) => setAddress(e.target.value)}
+            className={inputCls}
+          />
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={loading || !address}
+            className={btnPrimary}
+          >
+            {loading ? "Enviando…" : "Agregar"}
+          </button>
+        </div>
       ) : null}
       {error ? <p className="text-sm text-rose-400">{error}</p> : null}
       {info ? <p className="text-sm text-emerald-300">{info}</p> : null}
