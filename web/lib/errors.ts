@@ -5,17 +5,46 @@ export function parseTxError(e: unknown, fallback: string): string {
     shortMessage?: string;
     reason?: string;
     message?: string;
-    data?: { message?: string };
-    info?: { error?: { code?: number; message?: string } };
+    data?: { message?: string; data?: string } | string;
+    info?: { error?: { code?: number; message?: string; data?: string } };
+    revert?: { name?: string };
   };
   const raw = (
+    (typeof err.data === "object" ? err.data?.message : undefined) ??
     err.info?.error?.message ??
-    err.data?.message ??
     err.reason ??
     err.shortMessage ??
     err.message ??
     ""
   ).toLowerCase();
+  const revertName = err.revert?.name ?? "";
+
+  const rawData =
+    err.info?.error?.data ??
+    (typeof err.data === "string" ? err.data : err.data?.data) ??
+    "";
+  const selector = typeof rawData === "string" && rawData.startsWith("0x") ? rawData.slice(0, 10).toLowerCase() : "";
+  const SELECTORS: Record<string, string> = {
+    "0xe450d38c": "Saldo insuficiente del token requerido para completar la operación.",
+    "0xfb8f41b2": "Approve insuficiente: la wallet no autorizó al contrato a mover los tokens.",
+    "0x5274afe7": "La transferencia del token falló. Verifica saldo y approve."
+  };
+  if (selector && SELECTORS[selector]) return SELECTORS[selector];
+  if (revertName === "ERC20InsufficientBalance" || raw.includes("erc20insufficientbalance")) {
+    return "Saldo insuficiente del token requerido para completar la operación.";
+  }
+  if (revertName === "ERC20InsufficientAllowance" || raw.includes("erc20insufficientallowance")) {
+    return "Approve insuficiente: la wallet no autorizó al contrato a mover los tokens.";
+  }
+  if (revertName === "SafeERC20FailedOperation" || raw.includes("safeerc20failedoperation")) {
+    return "La transferencia del token falló. Verifica saldo y approve.";
+  }
+  if (revertName === "TokenNotAllowed") return "El token utilizado no está permitido en el contrato.";
+  if (revertName === "InvalidParams") return "Parámetros inválidos para la operación.";
+  if (revertName === "NotAuthorized") return "No estás autorizado para esta acción.";
+  if (revertName === "CannotCompleteOwn") return "No puedes completar tu propia operación.";
+  if (revertName === "InvalidStatus") return "La operación ya no está activa (puede haber sido completada o cancelada).";
+  if (revertName === "OperationNotFound") return "Operación no encontrada.";
 
   const rejectionCode =
     err.code === "ACTION_REJECTED" ||

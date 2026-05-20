@@ -1,7 +1,7 @@
 import { testWithSynpress } from "@synthetixio/synpress";
 import { MetaMask, metaMaskFixtures } from "@synthetixio/synpress/playwright";
 import { expect } from "@playwright/test";
-import setup, { PASSWORD } from "./wallet-setup/anvil.setup.mjs";
+import setup, { PASSWORD } from "./wallet-setup/anvil.setup";
 import { ESCROW_ADDRESS, TOKEN_A_ADDRESS, TOKEN_B_ADDRESS } from "../lib/contracts";
 import {
   STATUS,

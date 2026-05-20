@@ -133,9 +133,13 @@ export function OperationsList() {
       const owner = await signer.getAddress();
       const balance = (await tokenB.balanceOf(owner)) as bigint;
       if (balance < op.amountB) {
+        const metaB = tokenMeta[op.tokenB.toLowerCase()];
+        const symbol = metaB?.symbol || `${op.tokenB.slice(0, 6)}…`;
+        const needed = metaB ? formatUnits(op.amountB, metaB.decimals) : op.amountB.toString();
+        const have = metaB ? formatUnits(balance, metaB.decimals) : balance.toString();
         setOpError(
           op.id,
-          `Saldo insuficiente: necesitas ${op.amountB.toString()} del token ${op.tokenB.slice(0, 10)}… y tienes ${balance.toString()}.`
+          `Saldo insuficiente de ${symbol}: necesitas ${needed} y tienes ${have}.`
         );
         return;
       }

@@ -124,6 +124,32 @@ export function CreateOperation() {
       const decimalsB = tokens.find((t) => t.address === tokenB)?.decimals ?? Number(await new Contract(tokenB, ERC20_ABI, signer).decimals());
       const amountBWei = parseUnits(amountB, decimalsB);
 
+      const myAddress = await signer.getAddress();
+      let balanceA: bigint;
+      try {
+        balanceA = (await offered.balanceOf(myAddress)) as bigint;
+      } catch (balErr) {
+        console.error("[createOperation] balanceOf falló", balErr);
+        setError("No se pudo leer el saldo del token. Verifica la red.");
+        setBusy(false);
+        return;
+      }
+      console.log("[createOperation] balance check", {
+        address: myAddress,
+        token: tokenA,
+        balanceA: balanceA.toString(),
+        amountAWei: amountAWei.toString(),
+        decimalsA
+      });
+      if (balanceA < amountAWei) {
+        const symbol = tokens.find((t) => t.address === tokenA)?.symbol ?? "tokenA";
+        const { formatUnits } = await import("ethers");
+        const have = formatUnits(balanceA, decimalsA);
+        setError(`Saldo insuficiente de ${symbol}: necesitas ${amountA} y tienes ${have}.`);
+        setBusy(false);
+        return;
+      }
+
       setStatus("Aprobando token…");
       const approveTx = await offered.approve(ESCROW_ADDRESS, amountAWei);
       await approveTx.wait();

@@ -1,4 +1,4 @@
-import { defineConfig, devices } from "@playwright/test";
+import { defineConfig } from "@playwright/test";
 import * as path from "node:path";
 import * as dotenv from "dotenv";
 
@@ -21,8 +21,11 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "escrow-e2e",
-      use: { ...devices["Desktop Chrome"] }
+      name: "escrow-e2e"
+      // Do NOT use devices["Desktop Chrome"] — it sets channel: "chrome",
+      // which makes Playwright launch installed Google Chrome and prevents
+      // Synpress from sideloading the MetaMask extension. Synpress requires
+      // bundled Chromium with --load-extension (the default browserType).
     }
   ]
 });

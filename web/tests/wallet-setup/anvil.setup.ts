@@ -12,7 +12,7 @@ export const ANVIL_NETWORK = {
   symbol: "ETH"
 };
 
-export default defineWalletSetup(PASSWORD, async (context, walletPage) => {
+export default defineWalletSetup(SEED_PHRASE, async (context, walletPage) => {
   const metamask = new MetaMask(context, walletPage, PASSWORD);
   await metamask.importWallet(SEED_PHRASE);
   await metamask.addNetwork(ANVIL_NETWORK);

@@ -1,6 +1,6 @@
 import type { InterfaceAbi } from "ethers";
 
-export const ESCROW_ADDRESS = (process.env.NEXT_PUBLIC_ESCROW_ADDRESS ?? "0x5FbDB2315678afecb367f032d93F642f64180aa3") as `0x${string}`;
+export const ESCROW_ADDRESS = (process.env.NEXT_PUBLIC_ESCROW_ADDRESS ?? "0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E") as `0x${string}`;
 export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 11155111);
 export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? "";
 
@@ -18,7 +18,19 @@ export const ESCROW_ABI: InterfaceAbi = [
   "event TokenAdded(address indexed token)",
   "event OperationCreated(uint256 indexed operationId,address indexed creator,address tokenA,address tokenB,uint256 amountA,uint256 amountB)",
   "event OperationCompleted(uint256 indexed operationId,address indexed counterparty)",
-  "event OperationCancelled(uint256 indexed operationId)"
+  "event OperationCancelled(uint256 indexed operationId)",
+  "error TokenAlreadyAllowed()",
+  "error TokenNotAllowed()",
+  "error InvalidParams()",
+  "error NotAuthorized()",
+  "error CannotCompleteOwn()",
+  "error InvalidStatus()",
+  "error OperationNotFound()",
+  "error ERC20InsufficientBalance(address sender,uint256 balance,uint256 needed)",
+  "error ERC20InsufficientAllowance(address spender,uint256 allowance,uint256 needed)",
+  "error ERC20InvalidSender(address sender)",
+  "error ERC20InvalidReceiver(address receiver)",
+  "error SafeERC20FailedOperation(address token)"
 ];
 
 export const ERC20_ABI: InterfaceAbi = [
@@ -30,5 +42,5 @@ export const ERC20_ABI: InterfaceAbi = [
   "function approve(address spender,uint256 value) returns (bool)",
   "function transfer(address to,uint256 value) returns (bool)"
 ];
-export const TOKEN_A_ADDRESS = (process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS ?? "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512") as `0x${string}`;
-export const TOKEN_B_ADDRESS = (process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS ?? "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0") as `0x${string}`;
+export const TOKEN_A_ADDRESS = (process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS ?? "0xc3e53F4d16Ae77Db1c982e75a937B9f60FE63690") as `0x${string}`;
+export const TOKEN_B_ADDRESS = (process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS ?? "0x84eA74d481Ee0A5332c457a4d796187F6Ba67fEB") as `0x${string}`;
