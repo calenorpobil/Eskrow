@@ -1,0 +1,75 @@
+# ===== Backend (Rust) =====
+back/target/
+rust-telco-rocket/target/
+**/target/
+**/*.rs.bk
+**/Cargo.lock.bak
+
+# Bases de datos locales
+back/northwind.db
+back/*.db
+back/*.sqlite
+back/*.sqlite3
+
+# ===== Frontend (Next.js) =====
+# dependencies
+front/node_modules/
+front/.pnp
+front/.pnp.*
+front/.yarn/*
+!front/.yarn/patches
+!front/.yarn/plugins
+!front/.yarn/releases
+!front/.yarn/versions
+
+# testing
+front/coverage/
+
+# next.js
+front/.next/
+front/out/
+
+# production
+front/build/
+
+# debug
+front/npm-debug.log*
+front/yarn-debug.log*
+front/yarn-error.log*
+front/.pnpm-debug.log*
+
+# env files (sensibles)
+front/.env
+front/.env.*
+!front/.env.example
+
+# vercel
+front/.vercel
+
+# typescript
+front/*.tsbuildinfo
+front/next-env.d.ts
+
+# ===== Comunes =====
+# secretos / credenciales
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+secrets/
+
+# misc
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# logs
+*.log
+logs/

@@ -1,0 +1,67 @@
+### LIST - sin parámetros (page=1, per_page=10, order_by=company_name asc)
+GET http://localhost:8001/customers
+Accept: application/json
+
+### LIST - paginación (página 2, 5 registros por página)
+GET http://localhost:8001/customers?page=2&per_page=5
+Accept: application/json
+
+### LIST - filtro por nombre (contiene "rest")
+GET http://localhost:8001/customers?name_filter=rest
+Accept: application/json
+
+### LIST - ordenación descendente por país
+GET http://localhost:8001/customers?order_by=country&order_direction=desc
+Accept: application/json
+
+### LIST - combinación de todo
+GET http://localhost:8001/customers?page=1&per_page=5&name_filter=a&order_by=company_name&order_direction=desc
+Accept: application/json
+
+### Cliente existente (ALFKI es un id clasico de Northwind)
+GET http://localhost:8001/customers/ALFKI
+Accept: application/json
+
+### Cliente inexistente -> 404
+GET http://localhost:8001/customers/ZZZZZ
+Accept: application/json
+
+### CREATE - Crear un cliente nuevo
+POST http://localhost:8001/customers
+Content-Type: application/json
+
+{
+  "customer_id": "TEST1",
+  "company_name": "Empresa de Prueba",
+  "contact_name": "Carlos Bach",
+  "contact_title": "Owner",
+  "address": "Calle Falsa 123",
+  "city": "Madrid",
+  "region": null,
+  "postal_code": "28001",
+  "country": "Spain",
+  "phone": "+34 600 000 000",
+  "fax": null
+}
+
+### UPDATE - Actualizar el cliente creado
+PUT http://localhost:8001/customers/TEST1
+Content-Type: application/json
+
+{
+  "customer_id": "TEST1",
+  "company_name": "Empresa de Prueba S.L.",
+  "contact_name": "Carlos B.",
+  "contact_title": "CEO",
+  "address": "Gran Via 1",
+  "city": "Madrid",
+  "region": null,
+  "postal_code": "28013",
+  "country": "Spain",
+  "phone": "+34 600 111 222",
+  "fax": null
+}
+
+### DELETE - Borrar el cliente creado
+DELETE http://localhost:8001/customers/TEST1
+Accept: application/json
